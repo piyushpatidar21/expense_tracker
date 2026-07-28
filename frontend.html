@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Expense Ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Zilla+Slab:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F6F1E4;
+    --paper-dark:#ECE4CD;
+    --card:#FFFDF8;
+    --ink:#232A1E;
+    --ink-soft:#5B6350;
+    --rule:#CDBF9C;
+    --rule-soft:#E1D6B8;
+    --stamp-red:#A23B32;
+    --stamp-red-soft:#EBD9D3;
+    --stamp-blue:#2E4A5E;
+    --stamp-blue-soft:#D8E0E1;
+    --gold:#8E6E28;
+    --gold-soft:#EFE2BE;
+    --shadow: 0 2px 0 rgba(35,42,30,0.08);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    background-image:
+      linear-gradient(var(--rule-soft) 1px, transparent 1px);
+    background-size: 100% 42px;
+    color:var(--ink);
+    font-family:'IBM Plex Sans', sans-serif;
+    min-height:100vh;
+  }
+  .wrap{max-width:1080px; margin:0 auto; padding:28px 24px 80px;}
+
+  /* ---------- Header ---------- */
+  header{
+    display:flex; align-items:flex-end; justify-content:space-between;
+    border-bottom:3px double var(--ink);
+    padding-bottom:14px; margin-bottom:22px; flex-wrap:wrap; gap:14px;
+  }
+  .title-block h1{
+    font-family:'Zilla Slab', serif; font-weight:700; font-size:34px;
+    margin:0; letter-spacing:0.5px;
+  }
+  .title-block .sub{
+    font-size:12.5px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:1.6px; margin-top:2px;
+  }
+  .conn{
+    display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--ink-soft);
+  }
+  .dot{width:8px; height:8px; border-radius:50%; background:#999; flex-shrink:0;}
+  .dot.ok{background:#4B7A4E;}
+  .dot.bad{background:var(--stamp-red);}
+  .api-row{display:flex; gap:6px; align-items:center;}
+  .api-row input{
+    font-family:'IBM Plex Mono', monospace; font-size:12.5px; padding:6px 8px;
+    border:1px solid var(--rule); background:var(--card); color:var(--ink);
+    border-radius:3px; width:210px;
+  }
+  .btn-mini{
+    font-family:'IBM Plex Sans'; font-size:12px; padding:6px 10px; border-radius:3px;
+    border:1px solid var(--ink); background:var(--ink); color:var(--paper); cursor:pointer;
+  }
+  .btn-mini:hover{opacity:0.85;}
+
+  /* ---------- Summary strip ---------- */
+  .summary{
+    position:relative;
+    display:flex; gap:0; background:var(--card); border:1px solid var(--rule);
+    box-shadow:var(--shadow); margin-bottom:26px; overflow:visible;
+  }
+  .summary .cell{
+    flex:1; padding:16px 20px; border-right:1px dashed var(--rule-soft);
+  }
+  .summary .cell:last-child{border-right:none;}
+  .summary .label{font-size:11px; text-transform:uppercase; letter-spacing:1.4px; color:var(--ink-soft); margin-bottom:6px;}
+  .summary .value{font-family:'IBM Plex Mono', monospace; font-size:24px; font-weight:600;}
+  .stamp{
+    position:absolute; top:-16px; right:26px; width:96px; height:96px; border-radius:50%;
+    border:3px solid var(--stamp-red); color:var(--stamp-red);
+    display:flex; align-items:center; justify-content:center; text-align:center;
+    transform:rotate(-9deg); font-family:'Zilla Slab', serif; font-weight:700;
+    background:rgba(246,241,228,0.94); line-height:1.15; font-size:12px;
+    letter-spacing:0.5px; padding:6px; pointer-events:none;
+  }
+  .stamp .amt{font-size:15px; display:block; margin-top:2px; font-family:'IBM Plex Mono', monospace;}
+
+  /* ---------- Toolbar ---------- */
+  .toolbar{
+    display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end;
+    background:var(--paper-dark); border:1px solid var(--rule-soft); padding:14px 16px; margin-bottom:18px;
+  }
+  .field{display:flex; flex-direction:column; gap:4px;}
+  .field label{font-size:10.5px; text-transform:uppercase; letter-spacing:1px; color:var(--ink-soft);}
+  select, .field input{
+    font-family:'IBM Plex Sans'; font-size:13px; padding:7px 9px; border:1px solid var(--rule);
+    background:var(--card); border-radius:3px; color:var(--ink);
+  }
+  .field.amt input{width:90px; font-family:'IBM Plex Mono', monospace;}
+  .field.id-lookup input{width:110px; font-family:'IBM Plex Mono', monospace;}
+  .toolbar .spacer{flex:1;}
+  .btn{
+    font-family:'IBM Plex Sans'; font-size:13px; padding:8px 14px; border-radius:3px; cursor:pointer;
+    border:1px solid var(--ink); background:transparent; color:var(--ink);
+  }
+  .btn:hover{background:var(--ink); color:var(--paper);}
+  .btn.primary{background:var(--stamp-blue); border-color:var(--stamp-blue); color:#fff;}
+  .btn.primary:hover{background:#233846;}
+  .btn.ghost{border-color:var(--rule); color:var(--ink-soft);}
+  .btn.ghost:hover{background:var(--rule-soft); color:var(--ink);}
+
+  /* ---------- Table ---------- */
+  table{width:100%; border-collapse:collapse; background:var(--card); box-shadow:var(--shadow);}
+  thead th{
+    text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--ink-soft);
+    border-bottom:2px solid var(--ink); padding:10px 12px; font-weight:600;
+  }
+  tbody td{
+    padding:11px 12px; border-bottom:1px solid var(--rule-soft); font-size:13.5px; vertical-align:middle;
+  }
+  tbody tr:nth-child(even){background:rgba(205,191,156,0.12);}
+  tbody tr:hover{background:var(--gold-soft);}
+  td.amount{font-family:'IBM Plex Mono', monospace; text-align:right; font-weight:600;}
+  td.id{font-family:'IBM Plex Mono', monospace; color:var(--ink-soft); font-size:12.5px;}
+  .tag{
+    display:inline-block; font-size:11px; padding:3px 8px; border-radius:999px;
+    text-transform:capitalize; letter-spacing:0.3px; border:1px solid transparent;
+  }
+  .tag.food{background:#E4EEDD; color:#3E5C2C; border-color:#C6DAB6;}
+  .tag.travel{background:var(--stamp-blue-soft); color:var(--stamp-blue); border-color:#B9C8CC;}
+  .tag.shopping{background:#F2DCE6; color:#8A3D5C; border-color:#E4BFD1;}
+  .tag.bills{background:var(--gold-soft); color:var(--gold); border-color:#DDCB99;}
+  .tag.entertainment{background:#E6DCF2; color:#5D3D8A; border-color:#D2BFE4;}
+  .pay{font-size:12px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.5px;}
+  .row-actions{display:flex; gap:6px; justify-content:flex-end;}
+  .icon-btn{
+    border:1px solid var(--rule); background:var(--card); border-radius:3px; padding:5px 9px;
+    cursor:pointer; font-size:12px; color:var(--ink-soft);
+  }
+  .icon-btn:hover{border-color:var(--ink); color:var(--ink);}
+  .icon-btn.danger:hover{border-color:var(--stamp-red); color:var(--stamp-red);}
+  .empty-row td{text-align:center; padding:36px 12px; color:var(--ink-soft); font-style:italic;}
+
+  /* ---------- Pagination ---------- */
+  .pager{display:flex; align-items:center; gap:10px; justify-content:flex-end; margin-top:14px; font-size:13px;}
+  .pager select{padding:5px 7px; font-size:12.5px;}
+  .pager .page-num{font-family:'IBM Plex Mono', monospace;}
+
+  /* ---------- Modal (receipt slip) ---------- */
+  .overlay{
+    position:fixed; inset:0; background:rgba(35,42,30,0.45); display:none;
+    align-items:center; justify-content:center; z-index:50; padding:20px;
+  }
+  .overlay.show{display:flex;}
+  .slip{
+    background:var(--card); width:100%; max-width:440px; padding:26px 26px 20px;
+    border:1px solid var(--rule); position:relative; animation:rise .18s ease-out;
+    box-shadow:0 10px 30px rgba(35,42,30,0.25);
+  }
+  .slip::after{
+    content:""; position:absolute; left:0; right:0; bottom:-9px; height:9px;
+    background-image: radial-gradient(circle at 6px 0, transparent 5px, var(--card) 5.5px);
+    background-size: 12px 12px; background-repeat:repeat-x;
+  }
+  @keyframes rise{from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);}}
+  .slip h2{font-family:'Zilla Slab', serif; font-size:20px; margin:0 0 4px; font-weight:700;}
+  .slip .slip-sub{font-size:11.5px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:1px; margin-bottom:16px;}
+  .slip .field{margin-bottom:12px; width:100%;}
+  .slip .field input, .slip .field select, .slip .field textarea{width:100%;}
+  .slip textarea{font-family:'IBM Plex Sans'; resize:vertical; min-height:56px;}
+  .two-col{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  .slip-actions{display:flex; justify-content:flex-end; gap:8px; margin-top:16px;}
+  .close-x{
+    position:absolute; top:14px; right:16px; background:none; border:none; font-size:18px;
+    color:var(--ink-soft); cursor:pointer; line-height:1;
+  }
+  .field-err{color:var(--stamp-red); font-size:11.5px; margin-top:3px; display:none;}
+
+  /* ---------- Toasts ---------- */
+  .toasts{position:fixed; bottom:20px; right:20px; display:flex; flex-direction:column; gap:8px; z-index:80;}
+  .toast{
+    font-family:'IBM Plex Sans'; font-size:13px; padding:11px 16px; border-radius:3px; color:#fff;
+    box-shadow:0 4px 14px rgba(0,0,0,0.2); min-width:220px; animation:slidein .18s ease-out;
+  }
+  .toast.ok{background:#3F6B42;}
+  .toast.err{background:var(--stamp-red);}
+  @keyframes slidein{from{opacity:0; transform:translateX(20px);} to{opacity:1; transform:translateX(0);}}
+
+  @media (max-width:640px){
+    .two-col{grid-template-columns:1fr;}
+    .stamp{display:none;}
+    thead th:nth-child(4), tbody td:nth-child(4){display:none;}
+  }
+
+  /* ---------- Auth screen ---------- */
+  #authScreen{
+    min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;
+  }
+  .auth-card{
+    width:100%; max-width:400px; background:var(--card); border:1px solid var(--rule);
+    box-shadow:0 10px 30px rgba(35,42,30,0.18); padding:30px 30px 26px; position:relative;
+  }
+  .auth-card::after{
+    content:""; position:absolute; left:0; right:0; bottom:-9px; height:9px;
+    background-image: radial-gradient(circle at 6px 0, transparent 5px, var(--card) 5.5px);
+    background-size: 12px 12px; background-repeat:repeat-x;
+  }
+  .auth-title{text-align:center; margin-bottom:22px;}
+  .auth-title h1{
+    font-family:'Zilla Slab', serif; font-weight:700; font-size:28px; margin:0 0 4px;
+  }
+  .auth-title .sub{
+    font-size:12px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:1.6px;
+  }
+  .auth-tabs{display:flex; border:1px solid var(--rule); border-radius:3px; overflow:hidden; margin-bottom:22px;}
+  .auth-tab{
+    flex:1; text-align:center; padding:9px 0; font-size:13px; cursor:pointer;
+    background:var(--paper-dark); color:var(--ink-soft); user-select:none;
+  }
+  .auth-tab.active{background:var(--stamp-blue); color:#fff;}
+  .auth-form{display:none; flex-direction:column; gap:14px;}
+  .auth-form.active{display:flex;}
+  .auth-form .field label{font-size:10.5px; text-transform:uppercase; letter-spacing:1px; color:var(--ink-soft);}
+  .auth-form .field input{width:100%; margin-top:4px;}
+  .auth-submit{margin-top:4px;}
+  .auth-error{
+    color:var(--stamp-red); font-size:12.5px; margin-top:2px; display:none; text-align:center;
+  }
+  .auth-switch{text-align:center; font-size:12.5px; color:var(--ink-soft); margin-top:16px;}
+  .auth-switch a{color:var(--stamp-blue); cursor:pointer; text-decoration:underline;}
+  .hidden{display:none !important;}
+  .user-chip{
+    display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--ink-soft); margin-top:6px;
+  }
+  .user-chip .who{font-family:'IBM Plex Mono', monospace; color:var(--ink); font-weight:600;}
+</style>
+</head>
+<body>
+
+<div id="authScreen">
+  <div class="auth-card">
+    <div class="auth-title">
+      <h1>Expense Ledger</h1>
+      <div class="sub">Sign in to your register</div>
+    </div>
+
+    <div class="auth-tabs">
+      <div class="auth-tab active" id="tabLogin">Login</div>
+      <div class="auth-tab" id="tabRegister">Register</div>
+    </div>
+
+    <form class="auth-form active" id="loginForm">
+      <div class="field">
+        <label>Username or email</label>
+        <input id="loginUsername" type="text" required autocomplete="username">
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input id="loginPassword" type="password" required autocomplete="current-password">
+      </div>
+      <div class="auth-error" id="loginError"></div>
+      <button type="submit" class="btn primary auth-submit" id="loginSubmit">Log in</button>
+    </form>
+
+    <form class="auth-form" id="registerForm">
+      <div class="field">
+        <label>Username</label>
+        <input id="regUsername" type="text" required minlength="3" autocomplete="username">
+      </div>
+      <div class="field">
+        <label>Email</label>
+        <input id="regEmail" type="email" required autocomplete="email">
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input id="regPassword" type="password" required minlength="6" autocomplete="new-password">
+      </div>
+      <div class="auth-error" id="registerError"></div>
+      <button type="submit" class="btn primary auth-submit" id="registerSubmit">Create account</button>
+    </form>
+
+    <div class="auth-switch" id="authSwitchHint">New here? <a id="goRegister">Create an account</a></div>
+  </div>
+</div>
+
+<div class="wrap hidden" id="appScreen">
+  <header>
+    <div class="title-block">
+      <h1>Expense Ledger</h1>
+      <div class="sub">Personal spending register</div>
+    </div>
+    <div>
+      <div class="api-row">
+        <span class="conn"><span class="dot" id="connDot"></span><span id="connLabel">checking…</span></span>
+        <input id="apiBaseInput" type="text" value="" spellcheck="false">
+        <button class="btn-mini" id="connectBtn">Connect</button>
+      </div>
+      <div class="user-chip">
+        Signed in as <span class="who" id="whoAmI"></span>
+        <button class="btn-mini" id="logoutBtn" style="background:transparent; color:var(--ink-soft); border-color:var(--rule);">Log out</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="summary">
+    <div class="cell">
+      <div class="label">Entries</div>
+      <div class="value" id="sumCount">—</div>
+    </div>
+    <div class="cell">
+      <div class="label">Showing</div>
+      <div class="value" id="sumView" style="font-size:15px; font-weight:500; color:var(--ink-soft);">all entries</div>
+    </div>
+    <div class="stamp">TOTAL SPEND<span class="amt" id="sumTotal">—</span></div>
+  </div>
+
+  <div class="toolbar">
+    <div class="field">
+      <label>Category</label>
+      <select id="fCategory">
+        <option value="">Any</option>
+        <option value="food">Food</option>
+        <option value="travel">Travel</option>
+        <option value="shopping">Shopping</option>
+        <option value="bills">Bills</option>
+        <option value="entertainment">Entertainment</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Payment mode</label>
+      <select id="fPayment">
+        <option value="">Any</option>
+        <option value="cash">Cash</option>
+        <option value="upi">UPI</option>
+        <option value="credit">Credit</option>
+        <option value="debit">Debit</option>
+      </select>
+    </div>
+    <div class="field amt">
+      <label>Min amount</label>
+      <input id="fMin" type="number" step="0.01" placeholder="0.00">
+    </div>
+    <div class="field amt">
+      <label>Max amount</label>
+      <input id="fMax" type="number" step="0.01" placeholder="0.00">
+    </div>
+    <button class="btn" id="applyFilters">Apply</button>
+    <button class="btn ghost" id="resetFilters">Reset</button>
+    <div class="spacer"></div>
+    <div class="field id-lookup">
+      <label>Find by ID</label>
+      <input id="lookupId" type="text" placeholder="e12">
+    </div>
+    <button class="btn ghost" id="lookupBtn">Find</button>
+    <button class="btn primary" id="newEntryBtn">+ New Entry</button>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Date</th>
+        <th>Title</th>
+        <th>Description</th>
+        <th>Category</th>
+        <th>Payment</th>
+        <th style="text-align:right;">Amount</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="tbody">
+      <tr class="empty-row"><td colspan="8">Loading…</td></tr>
+    </tbody>
+  </table>
+
+  <div class="pager" id="pager" style="display:none;">
+    <span>Page</span>
+    <button class="icon-btn" id="prevPage">‹</button>
+    <span class="page-num" id="pageNum">1</span>
+    <button class="icon-btn" id="nextPage">›</button>
+    <select id="pageLimit">
+      <option value="5">5 / page</option>
+      <option value="10" selected>10 / page</option>
+      <option value="25">25 / page</option>
+      <option value="50">50 / page</option>
+    </select>
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <form class="slip" id="slipForm">
+    <button type="button" class="close-x" id="closeSlip">✕</button>
+    <h2 id="slipTitle">New Entry</h2>
+    <div class="slip-sub" id="slipSub">Record a new expense</div>
+
+    <div class="two-col">
+      <div class="field">
+        <label>Expense ID</label>
+        <input id="fld_id" type="text" placeholder="e15" maxlength="5" required>
+        <div class="field-err" id="err_id"></div>
+      </div>
+      <div class="field">
+        <label>Date</label>
+        <input id="fld_date" type="date" required>
+        <div class="field-err" id="err_date"></div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Title</label>
+      <input id="fld_title" type="text" placeholder="e.g. Grocery shopping">
+    </div>
+
+    <div class="two-col">
+      <div class="field">
+        <label>Amount</label>
+        <input id="fld_amount" type="number" step="0.01" min="0.01" placeholder="0.00" required>
+        <div class="field-err" id="err_amount"></div>
+      </div>
+      <div class="field">
+        <label>Category</label>
+        <select id="fld_category" required>
+          <option value="food">Food</option>
+          <option value="travel">Travel</option>
+          <option value="shopping">Shopping</option>
+          <option value="bills">Bills</option>
+          <option value="entertainment">Entertainment</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Payment mode</label>
+      <select id="fld_payment" required>
+        <option value="cash">Cash</option>
+        <option value="upi">UPI</option>
+        <option value="credit">Credit</option>
+        <option value="debit">Debit</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Description</label>
+      <textarea id="fld_description" placeholder="Optional detail"></textarea>
+    </div>
+
+    <div class="slip-actions">
+      <button type="button" class="btn ghost" id="cancelSlip">Cancel</button>
+      <button type="submit" class="btn primary" id="submitSlip">Save entry</button>
+    </div>
+  </form>
+</div>
+
+<div class="toasts" id="toasts"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const defaultApiBase = (window.location.origin && window.location.origin !== 'null')
+  ? window.location.origin
+  : 'http://localhost:8000';
+$('apiBaseInput').value = defaultApiBase;
+let apiBase = $('apiBaseInput').value.replace(/\/$/, '');
+let currentExpenses = [];
+let viewMode = { type: 'all' };          // 'all' | 'filtered' | 'amount' | 'lookup'
+let pageState = { page: 1, limit: 10 };
+let editingId = null;
+
+/* ---------------- auth state ---------------- */
+
+const TOKEN_KEY = 'expenseLedger.token';
+const USERNAME_KEY = 'expenseLedger.username';
+let authToken = localStorage.getItem(TOKEN_KEY) || null;
+let authUsername = localStorage.getItem(USERNAME_KEY) || null;
+
+function setSession(token, username){
+  authToken = token;
+  authUsername = username;
+  localStorage.setItem(TOKEN_KEY, token);
+  localStorage.setItem(USERNAME_KEY, username);
+}
+
+function clearSession(){
+  authToken = null;
+  authUsername = null;
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(USERNAME_KEY);
+}
+
+function showAuthScreen(message){
+  $('appScreen').classList.add('hidden');
+  $('authScreen').classList.remove('hidden');
+  if(message){
+    $('loginError').textContent = message;
+    $('loginError').style.display = 'block';
+  }
+}
+
+function showAppScreen(){
+  $('authScreen').classList.add('hidden');
+  $('appScreen').classList.remove('hidden');
+  $('whoAmI').textContent = authUsername || '';
+  init();
+}
+
+function toast(msg, type='ok'){
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  $('toasts').appendChild(el);
+  setTimeout(()=>{ el.remove(); }, 3800);
+}
+
+function fmtMoney(n){
+  return new Intl.NumberFormat('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2}).format(n);
+}
+
+async function api(path, opts={}){
+  const headers = {'Content-Type':'application/json'};
+  if(authToken) headers['Authorization'] = `Bearer ${authToken}`;
+  const res = await fetch(apiBase + path, {
+    headers,
+    ...opts
+  });
+  let body = null;
+  try { body = await res.json(); } catch(e) { /* no body */ }
+  if(res.status === 401){
+    clearSession();
+    showAuthScreen('Your session expired. Please log in again.');
+  }
+  if(!res.ok){
+    const msg = (body && (body.detail || body.message)) ||
+      `Request failed (status ${res.status})`;
+    const err = new Error(typeof msg === 'string' ? msg : JSON.stringify(msg));
+    err.status = res.status;
+    err.body = body;
+    throw err;
+  }
+  return body;
+}
+
+/* ---------------- auth screen wiring ---------------- */
+
+function switchAuthTab(which){
+  const isLogin = which === 'login';
+  $('tabLogin').classList.toggle('active', isLogin);
+  $('tabRegister').classList.toggle('active', !isLogin);
+  $('loginForm').classList.toggle('active', isLogin);
+  $('registerForm').classList.toggle('active', !isLogin);
+  $('authSwitchHint').innerHTML = isLogin
+    ? 'New here? <a id="goRegister">Create an account</a>'
+    : 'Already have an account? <a id="goLogin">Log in</a>';
+  const link = isLogin ? $('goRegister') : $('goLogin');
+  if(link) link.addEventListener('click', ()=> switchAuthTab(isLogin ? 'register' : 'login'));
+  $('loginError').style.display = 'none';
+  $('registerError').style.display = 'none';
+}
+
+$('tabLogin').addEventListener('click', ()=> switchAuthTab('login'));
+$('tabRegister').addEventListener('click', ()=> switchAuthTab('register'));
+$('goRegister').addEventListener('click', ()=> switchAuthTab('register'));
+
+$('loginForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  $('loginError').style.display = 'none';
+  const submitBtn = $('loginSubmit');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Logging in…';
+  try{
+    const res = await fetch(apiBase + '/auth/login', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        username: $('loginUsername').value.trim(),
+        password: $('loginPassword').value
+      })
+    });
+    const body = await res.json().catch(()=>null);
+    if(!res.ok){
+      throw new Error((body && body.detail) || 'Login failed.');
+    }
+    setSession(body.access_token, body.username);
+    $('loginForm').reset();
+    showAppScreen();
+    toast(`Welcome back, ${body.username}.`);
+  }catch(err){
+    $('loginError').textContent = err.message || 'Could not log in.';
+    $('loginError').style.display = 'block';
+  }finally{
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Log in';
+  }
+});
+
+$('registerForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  $('registerError').style.display = 'none';
+  const submitBtn = $('registerSubmit');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Creating account…';
+  try{
+    const res = await fetch(apiBase + '/auth/register', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        username: $('regUsername').value.trim(),
+        email: $('regEmail').value.trim(),
+        password: $('regPassword').value
+      })
+    });
+    const body = await res.json().catch(()=>null);
+    if(!res.ok){
+      const detail = body && body.detail;
+      const msg = Array.isArray(detail)
+        ? detail.map(d=>d.msg).join(' ')
+        : (detail || 'Registration failed.');
+      throw new Error(msg);
+    }
+    setSession(body.access_token, body.username);
+    $('registerForm').reset();
+    showAppScreen();
+    toast(`Account created. Welcome, ${body.username}.`);
+  }catch(err){
+    $('registerError').textContent = err.message || 'Could not create account.';
+    $('registerError').style.display = 'block';
+  }finally{
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Create account';
+  }
+});
+
+$('logoutBtn').addEventListener('click', ()=>{
+  clearSession();
+  showAuthScreen();
+  toast('Logged out.');
+});
+
+async function checkConnection(){
+  try{
+    await api('/health');
+    $('connDot').className = 'dot ok';
+    $('connLabel').textContent = 'connected';
+    return true;
+  }catch(e){
+    $('connDot').className = 'dot bad';
+    $('connLabel').textContent = 'not reachable';
+    return false;
+  }
+}
+
+function renderTable(list){
+  const tbody = $('tbody');
+  tbody.innerHTML = '';
+  if(!list || list.length === 0){
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="8">No entries here. Add one with “New Entry”, or adjust the filters.</td></tr>`;
+    return;
+  }
+  for(const e of list){
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="id">${e.expense_id}</td>
+      <td>${e.expense_date}</td>
+      <td>${e.title ? escapeHtml(e.title) : '<span style="color:var(--ink-soft);">—</span>'}</td>
+      <td style="color:var(--ink-soft); font-size:12.5px;">${e.description ? escapeHtml(e.description) : '—'}</td>
+      <td><span class="tag ${e.category}">${e.category}</span></td>
+      <td class="pay">${e.payment_mode}</td>
+      <td class="amount">₹${fmtMoney(e.amount)}</td>
+      <td>
+        <div class="row-actions">
+          <button class="icon-btn" data-edit="${e.expense_id}">Edit</button>
+          <button class="icon-btn danger" data-del="${e.expense_id}">Delete</button>
+        </div>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  }
+  tbody.querySelectorAll('[data-edit]').forEach(btn=>{
+    btn.addEventListener('click', ()=> openEdit(btn.dataset.edit));
+  });
+  tbody.querySelectorAll('[data-del]').forEach(btn=>{
+    btn.addEventListener('click', ()=> confirmDelete(btn.dataset.del));
+  });
+}
+
+function escapeHtml(s){
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function updateSummary(list, label){
+  $('sumCount').textContent = list.length;
+  const total = list.reduce((a,e)=> a + Number(e.amount||0), 0);
+  $('sumTotal').textContent = `₹${fmtMoney(total)}`;
+  $('sumView').textContent = label;
+}
+
+/* ---------------- data loading ---------------- */
+
+async function loadAllPaged(){
+  viewMode = {type:'all'};
+  $('pager').style.display = 'flex';
+  try{
+    const data = await api(`/pagination?page=${pageState.page}&limit=${pageState.limit}`);
+    currentExpenses = data;
+    renderTable(data);
+    updateSummary(data, `page ${pageState.page}`);
+    $('pageNum').textContent = pageState.page;
+  }catch(e){
+    handleLoadError(e);
+  }
+}
+
+async function loadFiltered(){
+  const category = $('fCategory').value;
+  const payment = $('fPayment').value;
+  viewMode = {type:'filtered'};
+  $('pager').style.display = 'none';
+  try{
+    const params = new URLSearchParams();
+    if(category) params.set('category_name', category);
+    if(payment) params.set('payment_mode', payment);
+    const data = await api(`/filter?${params.toString()}`);
+    const list = Array.isArray(data) ? data : [];
+    currentExpenses = list;
+    renderTable(list);
+    updateSummary(list, 'filtered results');
+  }catch(e){
+    handleLoadError(e);
+  }
+}
+
+async function loadAmountRange(min, max){
+  viewMode = {type:'amount'};
+  $('pager').style.display = 'none';
+  try{
+    const data = await api(`/filter_amount?first_amount=${min}&second_amount=${max}`);
+    const list = Array.isArray(data) ? data : [];
+    currentExpenses = list;
+    renderTable(list);
+    updateSummary(list, `₹${fmtMoney(min)} – ₹${fmtMoney(max)}`);
+  }catch(e){
+    handleLoadError(e);
+  }
+}
+
+async function lookupSingle(id){
+  $('pager').style.display = 'none';
+  try{
+    const data = await api(`/view/${encodeURIComponent(id)}`);
+    const list = [data];
+    currentExpenses = list;
+    renderTable(list);
+    updateSummary(list, `entry “${id}”`);
+  }catch(e){
+    handleLoadError(e, `No entry found with ID “${id}”.`);
+  }
+}
+
+function handleLoadError(e, fallback){
+  renderTable([]);
+  updateSummary([], '—');
+  toast(fallback || e.message || 'Could not load entries from the API.', 'err');
+}
+
+/* ---------------- toolbar wiring ---------------- */
+
+$('applyFilters').addEventListener('click', ()=>{
+  const min = $('fMin').value, max = $('fMax').value;
+  const category = $('fCategory').value, payment = $('fPayment').value;
+  if(min || max){
+    if(min === '' || max === ''){
+      toast('Enter both a min and a max amount to filter by range.', 'err');
+      return;
+    }
+    loadAmountRange(Number(min), Number(max));
+  } else if(category || payment){
+    loadFiltered();
+  } else {
+    pageState.page = 1;
+    loadAllPaged();
+  }
+});
+
+$('resetFilters').addEventListener('click', ()=>{
+  $('fCategory').value = ''; $('fPayment').value = ''; $('fMin').value=''; $('fMax').value='';
+  pageState.page = 1;
+  loadAllPaged();
+});
+
+$('lookupBtn').addEventListener('click', ()=>{
+  const id = $('lookupId').value.trim();
+  if(!id){ toast('Enter an expense ID to look up.', 'err'); return; }
+  lookupSingle(id);
+});
+
+$('prevPage').addEventListener('click', ()=>{
+  if(pageState.page > 1){ pageState.page--; loadAllPaged(); }
+});
+$('nextPage').addEventListener('click', ()=>{
+  if(currentExpenses.length === pageState.limit){ pageState.page++; loadAllPaged(); }
+});
+$('pageLimit').addEventListener('change', (e)=>{
+  pageState.limit = Number(e.target.value);
+  pageState.page = 1;
+  loadAllPaged();
+});
+
+$('connectBtn').addEventListener('click', ()=>{
+  apiBase = $('apiBaseInput').value.replace(/\/$/, '');
+  init();
+});
+
+/* ---------------- modal (add/edit) ---------------- */
+
+function clearErrors(){
+  document.querySelectorAll('.field-err').forEach(el=>{ el.style.display='none'; el.textContent=''; });
+}
+
+function openAdd(){
+  editingId = null;
+  $('slipTitle').textContent = 'New Entry';
+  $('slipSub').textContent = 'Record a new expense';
+  $('slipForm').reset();
+  $('fld_id').disabled = false;
+  $('fld_date').value = new Date().toISOString().slice(0,10);
+  $('fld_date').max = new Date().toISOString().slice(0,10);
+  clearErrors();
+  $('overlay').classList.add('show');
+  $('fld_id').focus();
+}
+
+async function openEdit(id){
+  try{
+    const e = await api(`/view/${encodeURIComponent(id)}`);
+    editingId = id;
+    $('slipTitle').textContent = 'Edit Entry';
+    $('slipSub').textContent = `Editing “${id}” — the ID itself can't be changed`;
+    $('fld_id').value = e.expense_id;
+    $('fld_id').disabled = true;
+    $('fld_title').value = e.title || '';
+    $('fld_amount').value = e.amount;
+    $('fld_category').value = e.category;
+    $('fld_date').value = e.expense_date;
+    $('fld_date').max = new Date().toISOString().slice(0,10);
+    $('fld_payment').value = e.payment_mode;
+    $('fld_description').value = e.description || '';
+    clearErrors();
+    $('overlay').classList.add('show');
+  }catch(err){
+    toast(`Couldn't load entry “${id}”.`, 'err');
+  }
+}
+
+function closeModal(){
+  $('overlay').classList.remove('show');
+  editingId = null;
+}
+
+$('newEntryBtn').addEventListener('click', openAdd);
+$('closeSlip').addEventListener('click', closeModal);
+$('cancelSlip').addEventListener('click', closeModal);
+$('overlay').addEventListener('click', (e)=>{ if(e.target.id === 'overlay') closeModal(); });
+
+$('slipForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  clearErrors();
+
+  const payload = {
+    expense_id: $('fld_id').value.trim(),
+    title: $('fld_title').value.trim() || null,
+    amount: Number($('fld_amount').value),
+    category: $('fld_category').value,
+    expense_date: $('fld_date').value,
+    payment_mode: $('fld_payment').value,
+    description: $('fld_description').value.trim() || null
+  };
+
+  const submitBtn = $('submitSlip');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Saving…';
+
+  try{
+    if(editingId){
+      await api(`/update/${encodeURIComponent(editingId)}`, {
+        method:'PUT', body: JSON.stringify(payload)
+      });
+      toast(`Entry “${editingId}” updated.`);
+    } else {
+      await api('/add', { method:'POST', body: JSON.stringify(payload) });
+      toast(`Entry “${payload.expense_id}” added.`);
+    }
+    closeModal();
+    refreshCurrentView();
+  }catch(err){
+    if(err.status === 422 && err.body && Array.isArray(err.body.detail)){
+      for(const d of err.body.detail){
+        const field = d.loc && d.loc[d.loc.length-1];
+        const el = $(`err_${field}`);
+        if(el){ el.textContent = d.msg; el.style.display='block'; }
+      }
+      toast('Check the highlighted fields.', 'err');
+    } else {
+      toast(err.message || 'Could not save this entry.', 'err');
+    }
+  }finally{
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Save entry';
+  }
+});
+
+/* ---------------- delete ---------------- */
+
+async function confirmDelete(id){
+  if(!confirm(`Delete entry “${id}”? This can't be undone.`)) return;
+  try{
+    await api(`/delete/${encodeURIComponent(id)}`, { method:'DELETE' });
+    toast(`Entry “${id}” deleted.`);
+    refreshCurrentView();
+  }catch(err){
+    toast(err.message || `Couldn't delete “${id}”.`, 'err');
+  }
+}
+
+function refreshCurrentView(){
+  if(viewMode.type === 'filtered') loadFiltered();
+  else if(viewMode.type === 'amount'){
+    const min = Number($('fMin').value), max = Number($('fMax').value);
+    loadAmountRange(min, max);
+  } else if(viewMode.type === 'lookup'){
+    loadAllPaged();
+  } else {
+    loadAllPaged();
+  }
+}
+
+/* ---------------- init ---------------- */
+
+async function init(){
+  const ok = await checkConnection();
+  if(ok){
+    pageState.page = 1;
+    loadAllPaged();
+  } else {
+    renderTable([]);
+    updateSummary([], '—');
+    toast(`Can't reach ${apiBase}. Make sure the server is running there and CORS is enabled.`, 'err');
+  }
+}
+
+if(authToken && authUsername){
+  showAppScreen();
+} else {
+  showAuthScreen();
+}
+</script>
+</body>
+</html>
