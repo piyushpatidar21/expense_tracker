@@ -81,7 +81,12 @@ def create_tables():
 
 
 # Auth route
-@app.post("/auth/register", response_model=Token, status_code=status.HTTP_201_CREATED)
+@app.post(
+    "/auth/register",
+    response_model=Token,
+    status_code=status.HTTP_201_CREATED,
+    tags=["Authentication"],
+)
 def register(info: UserRegister, db: Session = Depends(get_db)):
     username = info.username.strip()
     email = info.email.strip().lower()
@@ -116,7 +121,7 @@ def register(info: UserRegister, db: Session = Depends(get_db)):
     }
 
 
-@app.post("/auth/login", response_model=Token)
+@app.post("/auth/login", response_model=Token, tags=["Authentication"])
 def login(info: UserLogin, db: Session = Depends(get_db)):
     identifier = info.username.strip().lower()
     user = (
@@ -138,13 +143,13 @@ def login(info: UserLogin, db: Session = Depends(get_db)):
     }
 
 
-@app.get("/auth/me", response_model=UserOut)
+@app.get("/auth/me", response_model=UserOut, tags=["Authentication"])
 def me(current_user: User = Depends(get_current_user)):
     return current_user
 
 
 # Expense routes (all require a logged-in user)
-@app.post("/add")
+@app.post("/add", tags=["Expenses"])
 def add_expenses(
     info: Expense_Create,
     db: Session = Depends(get_db),
@@ -153,7 +158,7 @@ def add_expenses(
     return insert_data(info, current_user.id, db)
 
 
-@app.get("/view")
+@app.get("/view", tags=["Expenses"])
 def view_all_expenses(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -161,7 +166,7 @@ def view_all_expenses(
     return view_all_expense(current_user.id, db)
 
 
-@app.get("/view/{expense_id}")
+@app.get("/view/{expense_id}", tags=["Expenses"])
 def view_by_expense_ID(
     expense_id: str = Path(
         ..., description="Enter a valid expense ID", examples=["e1", "e2"]
@@ -175,7 +180,7 @@ def view_by_expense_ID(
     return db_data
 
 
-@app.put("/update/{expense_id}")
+@app.put("/update/{expense_id}", tags=["Expenses"])
 def update_expenses(
     expense_id: str,
     info: UpdateExpense,
@@ -188,7 +193,7 @@ def update_expenses(
     return db_data
 
 
-@app.patch("/update_field/{expense_id}")
+@app.patch("/update_field/{expense_id}", tags=["Expenses"])
 def update_field(
     expense_id: str,
     info: UpdateFieldExpense,
@@ -201,7 +206,7 @@ def update_field(
     return db_data
 
 
-@app.delete("/delete/{expense_id}")
+@app.delete("/delete/{expense_id}", tags=["Expenses"])
 def delete_expenses(
     expense_id: str = Path(..., description="Enter expense ID"),
     db: Session = Depends(get_db),
@@ -213,7 +218,7 @@ def delete_expenses(
     return db_data
 
 
-@app.get("/filter")
+@app.get("/filter", tags=["Filtering"])
 def filter_by_field(
     category_name: str = Query(
         description="Enter Filter Category like 'bills','entertainment','food','travel','shopping'",
@@ -229,7 +234,7 @@ def filter_by_field(
     return filter_field(category_name, payment_mode, current_user.id, db)
 
 
-@app.get("/filter_amount")
+@app.get("/filter_amount", tags=["Filtering"])
 def filter_by_amount_range(
     first_amount: float = Query(..., description="Enter first amount range"),
     second_amount: float = Query(..., description="Enter second amount range"),
@@ -239,7 +244,7 @@ def filter_by_amount_range(
     return filter_amount(first_amount, second_amount, current_user.id, db)
 
 
-@app.get("/pagination")
+@app.get("/pagination", tags=["Filtering"])
 def pagination_by_limit(
     page: int = Query(1, ge=1, description="page number"),
     limit: int = Query(1, gt=0, lt=100, description="Number of record per page "),
