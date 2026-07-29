@@ -21,6 +21,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60")
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
+
 # Password hashing
 def hash_password(password: str) -> str:
     salt = bcrypt.gensalt()
@@ -34,6 +35,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         )
     except ValueError:
         return False
+
 
 # JWT tokens
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
@@ -58,6 +60,7 @@ def decode_access_token(token: str) -> dict:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials",
         )
+
 
 # FastAPI dependency: get the currently authenticated user
 def get_current_user(

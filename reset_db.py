@@ -12,6 +12,7 @@ Only run this against a database you're OK wiping (e.g. during development).
 Usage:
     python reset_db.py
 """
+
 from database import base, engine
 import models  # noqa: F401  (registers User + Expenses with Base.metadata)
 

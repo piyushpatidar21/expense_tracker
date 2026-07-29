@@ -55,11 +55,12 @@ class PaymentEnum(str, Enum):
     credit = "credit"
     debit = "debit"
 
+
 class UpdateExpense(BaseModel):
     title: str
     amount: float
     category: CategoryEnum
-    expense_date:date
+    expense_date: date
     payment_mode: PaymentEnum
     description: str
 
@@ -68,7 +69,7 @@ class UpdateFieldExpense(BaseModel):
     title: Optional[str] = None
     amount: Optional[float] = None
     category: Optional[CategoryEnum] = None
-    expense_date:Optional[date] = None
+    expense_date: Optional[date] = None
     payment_mode: Optional[PaymentEnum] = None
     description: Optional[str] = None
 

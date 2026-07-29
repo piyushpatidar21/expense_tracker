@@ -16,18 +16,15 @@ if not DATABASE_URL:
 
 engine = create_engine(
     DATABASE_URL,
-    connect_args={
-        "check_same_thread": False
-    } if DATABASE_URL.startswith("sqlite") else {}
+    connect_args={"check_same_thread": False}
+    if DATABASE_URL.startswith("sqlite")
+    else {},
 )
 
 base = declarative_base()
 
-localSession = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=engine
-)
+localSession = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
 
 def get_db():
     db = localSession()

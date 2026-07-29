@@ -64,6 +64,7 @@ def expense_id_not_found(request: Request, exc: ExpenseIDNotFoundError):
         status_code=404, content={"message": "Expense ID invalid not found"}
     )
 
+
 @app.get("/", response_class=HTMLResponse)
 def serve_frontend():
     return FRONTEND_FILE.read_text(encoding="utf-8")
@@ -77,6 +78,7 @@ def health_check():
 @app.on_event("startup")
 def create_tables():
     base.metadata.create_all(bind=engine)
+
 
 # Auth route
 @app.post("/auth/register", response_model=Token, status_code=status.HTTP_201_CREATED)
@@ -107,7 +109,11 @@ def register(info: UserRegister, db: Session = Depends(get_db)):
     db.refresh(user)
 
     access_token = create_access_token({"sub": str(user.id)})
-    return {"access_token": access_token, "token_type": "bearer", "username": user.username}
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "username": user.username,
+    }
 
 
 @app.post("/auth/login", response_model=Token)
@@ -125,7 +131,11 @@ def login(info: UserLogin, db: Session = Depends(get_db)):
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
     access_token = create_access_token({"sub": str(user.id)})
-    return {"access_token": access_token, "token_type": "bearer", "username": user.username}
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "username": user.username,
+    }
 
 
 @app.get("/auth/me", response_model=UserOut)
@@ -176,6 +186,7 @@ def update_expenses(
     if not db_data:
         raise ExpenseIDNotFoundError
     return db_data
+
 
 @app.patch("/update_field/{expense_id}")
 def update_field(
