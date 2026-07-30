@@ -5,10 +5,17 @@ from sqlalchemy import pool
 from models import *  # noqa: F403
 from database import base
 from alembic import context
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+config = context.config
+
+database_url = os.getenv("DATABASE_URL")
+config.set_main_option("sqlalchemy.url", database_url)
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
-config = context.config
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
