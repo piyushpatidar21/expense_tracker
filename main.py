@@ -2,7 +2,15 @@ from pathlib import Path as FilePath
 
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from fastapi import FastAPI, Depends, HTTPException, Path, Query, status
+from fastapi import (
+    FastAPI,
+    Depends,
+    HTTPException,
+    Path,
+    Query,
+    status,
+    BackgroundTasks,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from database import base, engine, get_db
 from schema import (
@@ -88,7 +96,9 @@ def create_tables():
     status_code=status.HTTP_201_CREATED,
     tags=["Authentication"],
 )
-def register(info: UserRegister, db: Session = Depends(get_db)):
+def register(
+    info: UserRegister, background_task: BackgroundTasks, db: Session = Depends(get_db)
+):
     username = info.username.strip()
     email = info.email.strip().lower()
 
@@ -113,7 +123,8 @@ def register(info: UserRegister, db: Session = Depends(get_db)):
     db.add(user)
     db.commit()
     db.refresh(user)
-    send_email(
+    background_task.add_task(
+        send_email,
         receiver_email=user.email,
         subject="Welcome to Expense Tracker",
         body=f"""
@@ -138,7 +149,9 @@ def register(info: UserRegister, db: Session = Depends(get_db)):
 
 
 @app.post("/auth/login", response_model=Token, tags=["Authentication"])
-def login(info: UserLogin, db: Session = Depends(get_db)):
+def login(
+    info: UserLogin, background_task: BackgroundTasks, db: Session = Depends(get_db)
+):
     identifier = info.username.strip().lower()
     user = (
         db.query(User)
@@ -151,7 +164,8 @@ def login(info: UserLogin, db: Session = Depends(get_db)):
     if not user or not verify_password(info.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
-    send_email(
+    background_task.add_task(
+        send_email,
         receiver_email=user.email,
         subject="Expense Tracker Login Successful",
         body=f"""
