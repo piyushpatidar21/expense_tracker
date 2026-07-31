@@ -619,10 +619,19 @@ $('registerForm').addEventListener('submit', async (e)=>{
         : (detail || 'Registration failed.');
       throw new Error(msg);
     }
-    setSession(body.access_token, body.username);
+    // setSession(body.access_token, body.username);
+    // $('registerForm').reset();
+    // showAppScreen();
+    // toast(`Account created. Welcome, ${body.username}.`);
     $('registerForm').reset();
-    showAppScreen();
-    toast(`Account created. Welcome, ${body.username}.`);
+
+    // Optional: Fill the username automatically
+    $('loginUsername').value = $('regUsername').value.trim();
+
+    // Switch to Login tab
+    switchAuthTab('login');
+
+toast('Registration successful. Please log in.');
   }catch(err){
     $('registerError').textContent = err.message || 'Could not create account.';
     $('registerError').style.display = 'block';

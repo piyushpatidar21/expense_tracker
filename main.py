@@ -29,6 +29,7 @@ from services.update_data import update_data, update_expense_field
 from services.delete_expense import delete_expense
 from services.view_expense import view_all_expense, view_expense_ID
 from services.pagination import pagination_data
+from email_utils import send_email
 
 BASE_DIR = FilePath(__file__).resolve().parent
 FRONTEND_FILE = BASE_DIR / "frontend.html"
@@ -112,13 +113,28 @@ def register(info: UserRegister, db: Session = Depends(get_db)):
     db.add(user)
     db.commit()
     db.refresh(user)
+    send_email(
+        receiver_email=user.email,
+        subject="Welcome to Expense Tracker",
+        body=f"""
+    Hello {user.username},
 
-    access_token = create_access_token({"sub": str(user.id)})
-    return {
-        "access_token": access_token,
-        "token_type": "bearer",
-        "username": user.username,
-    }
+    Your account has been created successfully.
+
+    Thank you for registering.
+
+    Regards,
+    Expense Tracker Team
+    """,
+    )
+    return JSONResponse(status_code=201, content="Account Registration Succesfully")
+
+    # access_token = create_access_token({"sub": str(user.id)})
+    # return {
+    #     "access_token": access_token,
+    #     "token_type": "bearer",
+    #     "username": user.username,
+    # }
 
 
 @app.post("/auth/login", response_model=Token, tags=["Authentication"])
@@ -135,6 +151,18 @@ def login(info: UserLogin, db: Session = Depends(get_db)):
     if not user or not verify_password(info.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
+    send_email(
+        receiver_email=user.email,
+        subject="Expense Tracker Login Successful",
+        body=f"""
+    Hello {user.username},
+
+    You have successfully logged in to your Expense Tracker account.
+
+    Regards,
+    Expense Tracker Team
+    """,
+    )
     access_token = create_access_token({"sub": str(user.id)})
     return {
         "access_token": access_token,
