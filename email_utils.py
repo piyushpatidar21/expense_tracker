@@ -18,7 +18,10 @@ def send_email(receiver_email: str, subject: str, body: str):
 
     msg.set_content(body)
 
-    with smtplib.SMTP("smtp.gmail.com", 587) as smtp:
-        smtp.starttls()
-        smtp.login(EMAIL, EMAIL_PASSWORD)
-        smtp.send_message(msg)
+    try:
+        with smtplib.SMTP("smtp.gmail.com", 587) as smtp:
+            smtp.starttls()
+            smtp.login(EMAIL, EMAIL_PASSWORD)
+            smtp.send_message(msg)
+    except Exception as e:
+        print(f"Failed to send email to {receiver_email}: {e}")

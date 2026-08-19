@@ -46,3 +46,17 @@ class Expenses(base):
     description = Column(String)
 
     owner = relationship("User", back_populates="expenses")
+
+
+class PasswordResetOTP(base):
+    __tablename__ = "password_reset_otps"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    otp = Column(String, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", backref="reset_otps")

@@ -1,3 +1,5 @@
+import secrets
+from datetime import datetime, timedelta
 from pathlib import Path as FilePath
 
 from sqlalchemy.orm import Session
@@ -21,10 +23,13 @@ from schema import (
     UserLogin,
     Token,
     UserOut,
+    ForgotPasswordRequest,
+    VerifyOTPRequest,
+    ResetPasswordRequest,
 )
 from starlette.requests import Request
 from fastapi.responses import HTMLResponse, JSONResponse
-from models import User
+from models import User, PasswordResetOTP
 from auth import (
     hash_password,
     verify_password,
@@ -188,6 +193,174 @@ def login(
 @app.get("/auth/me", response_model=UserOut, tags=["Authentication"])
 def me(current_user: User = Depends(get_current_user)):
     return current_user
+
+
+@app.post("/auth/forgot-password", tags=["Authentication"])
+def forgot_password(
+    info: ForgotPasswordRequest,
+    background_task: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    email = info.email.strip().lower()
+    user = db.query(User).filter(func.lower(User.email) == email).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No account found with this registered email address",
+        )
+
+    # Generate a secure 6-digit numeric OTP
+    otp = f"{secrets.randbelow(900000) + 100000}"
+    expires_at = datetime.utcnow() + timedelta(minutes=15)
+
+    # Invalidate any previous OTPs for this user
+    db.query(PasswordResetOTP).filter(PasswordResetOTP.user_id == user.id).delete()
+
+    # Save new OTP valid for 15 minutes
+    reset_entry = PasswordResetOTP(
+        user_id=user.id,
+        otp=otp,
+        expires_at=expires_at,
+    )
+    db.add(reset_entry)
+    db.commit()
+
+    # Send OTP to user's registered email in background
+    background_task.add_task(
+        send_email,
+        receiver_email=user.email,
+        subject="Expense Tracker - Password Reset OTP",
+        body=f"""Hello {user.username},
+
+You requested to reset your password for Expense Tracker.
+
+Your 6-digit One-Time Password (OTP) is: {otp}
+
+This OTP is valid for 15 minutes.
+
+If you did not request a password reset, please ignore this email.
+
+Regards,
+Expense Tracker Team
+""",
+    )
+
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={
+            "message": "OTP has been sent to your registered email address. It is valid for 15 minutes."
+        },
+    )
+
+
+@app.post("/auth/verify-otp", tags=["Authentication"])
+def verify_otp(
+    info: VerifyOTPRequest,
+    db: Session = Depends(get_db),
+):
+    email = info.email.strip().lower()
+    user = db.query(User).filter(func.lower(User.email) == email).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No account found with this email address",
+        )
+
+    otp_record = (
+        db.query(PasswordResetOTP)
+        .filter(
+            PasswordResetOTP.user_id == user.id,
+            PasswordResetOTP.otp == info.otp.strip(),
+        )
+        .first()
+    )
+    if not otp_record:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid OTP code. Please check and try again.",
+        )
+
+    if datetime.utcnow() > otp_record.expires_at:
+        db.delete(otp_record)
+        db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="OTP has expired (15 minutes limit). Please request a new OTP.",
+        )
+
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={
+            "message": "OTP verified successfully. You may now set a new password."
+        },
+    )
+
+
+@app.post("/auth/reset-password", tags=["Authentication"])
+def reset_password(
+    info: ResetPasswordRequest,
+    background_task: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    email = info.email.strip().lower()
+    user = db.query(User).filter(func.lower(User.email) == email).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No account found with this email address",
+        )
+
+    otp_record = (
+        db.query(PasswordResetOTP)
+        .filter(
+            PasswordResetOTP.user_id == user.id,
+            PasswordResetOTP.otp == info.otp.strip(),
+        )
+        .first()
+    )
+    if not otp_record:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid OTP code. Please check and try again.",
+        )
+
+    if datetime.utcnow() > otp_record.expires_at:
+        db.delete(otp_record)
+        db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="OTP has expired (15 minutes limit). Please request a new OTP.",
+        )
+
+    # Update password and clear used OTPs
+    user.hashed_password = hash_password(info.new_password)
+    db.query(PasswordResetOTP).filter(PasswordResetOTP.user_id == user.id).delete()
+    db.commit()
+
+    # Send confirmation email
+    background_task.add_task(
+        send_email,
+        receiver_email=user.email,
+        subject="Expense Tracker - Password Reset Successful",
+        body=f"""Hello {user.username},
+
+Your Expense Tracker account password has been successfully reset.
+
+You can now log in using your new password.
+
+If you did not make this change, please contact support immediately.
+
+Regards,
+Expense Tracker Team
+""",
+    )
+
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={
+            "message": "Password reset successfully! You can now log in with your new password."
+        },
+    )
 
 
 # Expense routes (all require a logged-in user)

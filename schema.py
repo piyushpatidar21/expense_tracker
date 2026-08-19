@@ -26,6 +26,27 @@ class UserLogin(BaseModel):
     password: str = Field(..., description="Enter your password")
 
 
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr = Field(..., description="Enter your registered email address")
+
+
+class VerifyOTPRequest(BaseModel):
+    email: EmailStr = Field(..., description="Enter your registered email address")
+    otp: str = Field(
+        ..., min_length=4, max_length=10, description="Enter the 6-digit OTP code"
+    )
+
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr = Field(..., description="Enter your registered email address")
+    otp: str = Field(
+        ..., min_length=4, max_length=10, description="Enter the 6-digit OTP code"
+    )
+    new_password: str = Field(
+        ..., min_length=6, description="Password must be at least 6 characters"
+    )
+
+
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"

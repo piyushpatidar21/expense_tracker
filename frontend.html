@@ -245,10 +245,10 @@
   <div class="auth-card">
     <div class="auth-title">
       <h1>Expense Ledger</h1>
-      <div class="sub">Sign in to your register</div>
+      <div class="sub" id="authSubTitle">Sign in to your register</div>
     </div>
 
-    <div class="auth-tabs">
+    <div class="auth-tabs" id="authTabs">
       <div class="auth-tab active" id="tabLogin">Login</div>
       <div class="auth-tab" id="tabRegister">Register</div>
     </div>
@@ -259,7 +259,10 @@
         <input id="loginUsername" type="text" required autocomplete="username">
       </div>
       <div class="field">
-        <label>Password</label>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <label>Password</label>
+          <a id="goForgotFromLogin" style="font-size:11.5px; color:var(--stamp-blue); cursor:pointer; text-decoration:underline;">Forgot password?</a>
+        </div>
         <input id="loginPassword" type="password" required autocomplete="current-password">
       </div>
       <div class="auth-error" id="loginError"></div>
@@ -282,6 +285,48 @@
       <div class="auth-error" id="registerError"></div>
       <button type="submit" class="btn primary auth-submit" id="registerSubmit">Create account</button>
     </form>
+
+    <!-- Forgot Password Form -->
+    <div class="auth-form" id="forgotForm">
+      <!-- Step 1: Send OTP -->
+      <div id="forgotStep1">
+        <p style="font-size:12px; color:var(--ink-soft); margin:0 0 12px; line-height:1.4;">
+          Enter your registered email address. We will send you a 6-digit OTP valid for <strong>15 minutes</strong>.
+        </p>
+        <div class="field">
+          <label>Registered Email</label>
+          <input id="forgotEmail" type="email" placeholder="you@example.com" autocomplete="email">
+        </div>
+        <div class="auth-error" id="forgotErrorStep1"></div>
+        <button type="button" class="btn primary auth-submit" id="forgotSendOtpBtn" style="width:100%; margin-top:10px;">Send Reset OTP</button>
+      </div>
+
+      <!-- Step 2: Verify OTP and Reset Password -->
+      <div id="forgotStep2" style="display:none;">
+        <p style="font-size:12px; color:var(--ink-soft); margin:0 0 12px; line-height:1.4;">
+          OTP sent to <span id="forgotTargetEmailDisplay" style="font-weight:600; color:var(--ink);"></span>. Enter the code and set your new password.
+        </p>
+        <div class="field">
+          <label>6-Digit OTP</label>
+          <input id="forgotOtp" type="text" maxlength="6" placeholder="123456" style="font-family:'IBM Plex Mono', monospace; font-size:16px; letter-spacing:3px; text-align:center;">
+        </div>
+        <div class="field" style="margin-top:10px;">
+          <label>New Password</label>
+          <input id="forgotNewPassword" type="password" minlength="6" placeholder="At least 6 characters" autocomplete="new-password">
+        </div>
+        <div class="field" style="margin-top:10px;">
+          <label>Confirm New Password</label>
+          <input id="forgotConfirmPassword" type="password" minlength="6" placeholder="Confirm new password" autocomplete="new-password">
+        </div>
+        <div class="auth-error" id="forgotErrorStep2"></div>
+        <button type="button" class="btn primary auth-submit" id="forgotResetBtn" style="width:100%; margin-top:12px;">Reset Password</button>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:14px; font-size:12px;">
+          <a id="forgotResendOtpBtn" style="color:var(--stamp-blue); cursor:pointer; text-decoration:underline;">Resend OTP</a>
+          <a id="forgotChangeEmailBtn" style="color:var(--ink-soft); cursor:pointer; text-decoration:underline;">Change Email</a>
+        </div>
+      </div>
+    </div>
 
     <div class="auth-switch" id="authSwitchHint">New here? <a id="goRegister">Create an account</a></div>
   </div>
@@ -546,22 +591,175 @@ async function api(path, opts={}){
 
 function switchAuthTab(which){
   const isLogin = which === 'login';
+  const isRegister = which === 'register';
+  const isForgot = which === 'forgot';
+
+  if($('authTabs')) $('authTabs').style.display = isForgot ? 'none' : 'flex';
   $('tabLogin').classList.toggle('active', isLogin);
-  $('tabRegister').classList.toggle('active', !isLogin);
+  $('tabRegister').classList.toggle('active', isRegister);
   $('loginForm').classList.toggle('active', isLogin);
-  $('registerForm').classList.toggle('active', !isLogin);
-  $('authSwitchHint').innerHTML = isLogin
-    ? 'New here? <a id="goRegister">Create an account</a>'
-    : 'Already have an account? <a id="goLogin">Log in</a>';
-  const link = isLogin ? $('goRegister') : $('goLogin');
-  if(link) link.addEventListener('click', ()=> switchAuthTab(isLogin ? 'register' : 'login'));
+  $('registerForm').classList.toggle('active', isRegister);
+  $('forgotForm').classList.toggle('active', isForgot);
+
   $('loginError').style.display = 'none';
   $('registerError').style.display = 'none';
+  $('forgotErrorStep1').style.display = 'none';
+  $('forgotErrorStep2').style.display = 'none';
+
+  if(isForgot){
+    $('authSubTitle').textContent = 'Reset your password';
+    $('authSwitchHint').innerHTML = '<a id="goBackToLogin">← Back to log in</a>';
+    const link = $('goBackToLogin');
+    if(link) link.addEventListener('click', ()=> switchAuthTab('login'));
+    $('forgotStep1').style.display = 'block';
+    $('forgotStep2').style.display = 'none';
+  } else if(isLogin){
+    $('authSubTitle').textContent = 'Sign in to your register';
+    $('authSwitchHint').innerHTML = 'New here? <a id="goRegister">Create an account</a>';
+    const link = $('goRegister');
+    if(link) link.addEventListener('click', ()=> switchAuthTab('register'));
+  } else {
+    $('authSubTitle').textContent = 'Create your ledger account';
+    $('authSwitchHint').innerHTML = 'Already have an account? <a id="goLogin">Log in</a>';
+    const link = $('goLogin');
+    if(link) link.addEventListener('click', ()=> switchAuthTab('login'));
+  }
 }
 
 $('tabLogin').addEventListener('click', ()=> switchAuthTab('login'));
 $('tabRegister').addEventListener('click', ()=> switchAuthTab('register'));
 $('goRegister').addEventListener('click', ()=> switchAuthTab('register'));
+$('goForgotFromLogin').addEventListener('click', ()=> switchAuthTab('forgot'));
+
+// Send OTP
+$('forgotSendOtpBtn').addEventListener('click', async ()=>{
+  const email = $('forgotEmail').value.trim();
+  $('forgotErrorStep1').style.display = 'none';
+  if(!email || !email.includes('@')){
+    $('forgotErrorStep1').textContent = 'Please enter a valid email address.';
+    $('forgotErrorStep1').style.display = 'block';
+    return;
+  }
+
+  const btn = $('forgotSendOtpBtn');
+  btn.disabled = true;
+  btn.textContent = 'Sending OTP…';
+  try{
+    const res = await fetch(apiBase + '/auth/forgot-password', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ email })
+    });
+    const body = await res.json().catch(()=>null);
+    if(!res.ok){
+      const detail = body && (body.detail || body.message);
+      throw new Error(detail || 'Failed to send OTP.');
+    }
+    $('forgotTargetEmailDisplay').textContent = email;
+    $('forgotStep1').style.display = 'none';
+    $('forgotStep2').style.display = 'block';
+    $('forgotOtp').value = '';
+    $('forgotNewPassword').value = '';
+    $('forgotConfirmPassword').value = '';
+    $('forgotErrorStep2').style.display = 'none';
+    toast('OTP sent to your email! (Valid for 15 mins)');
+    $('forgotOtp').focus();
+  }catch(err){
+    $('forgotErrorStep1').textContent = err.message || 'Could not send OTP.';
+    $('forgotErrorStep1').style.display = 'block';
+  }finally{
+    btn.disabled = false;
+    btn.textContent = 'Send Reset OTP';
+  }
+});
+
+// Resend OTP
+$('forgotResendOtpBtn').addEventListener('click', async ()=>{
+  const email = $('forgotEmail').value.trim();
+  if(!email) return;
+  const link = $('forgotResendOtpBtn');
+  const oldText = link.textContent;
+  link.textContent = 'Sending…';
+  try{
+    const res = await fetch(apiBase + '/auth/forgot-password', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ email })
+    });
+    const body = await res.json().catch(()=>null);
+    if(!res.ok){
+      throw new Error((body && (body.detail || body.message)) || 'Failed to resend OTP.');
+    }
+    toast('New OTP sent to your email! (Valid for 15 mins)');
+  }catch(err){
+    toast(err.message || 'Failed to resend OTP.', 'err');
+  }finally{
+    link.textContent = oldText;
+  }
+});
+
+// Change Email
+$('forgotChangeEmailBtn').addEventListener('click', ()=>{
+  $('forgotStep1').style.display = 'block';
+  $('forgotStep2').style.display = 'none';
+  $('forgotEmail').focus();
+});
+
+// Reset Password
+$('forgotResetBtn').addEventListener('click', async ()=>{
+  const email = $('forgotEmail').value.trim();
+  const otp = $('forgotOtp').value.trim();
+  const newPassword = $('forgotNewPassword').value;
+  const confirmPassword = $('forgotConfirmPassword').value;
+  $('forgotErrorStep2').style.display = 'none';
+
+  if(!otp || otp.length < 4){
+    $('forgotErrorStep2').textContent = 'Please enter the 6-digit OTP received in your email.';
+    $('forgotErrorStep2').style.display = 'block';
+    return;
+  }
+  if(!newPassword || newPassword.length < 6){
+    $('forgotErrorStep2').textContent = 'Password must be at least 6 characters long.';
+    $('forgotErrorStep2').style.display = 'block';
+    return;
+  }
+  if(newPassword !== confirmPassword){
+    $('forgotErrorStep2').textContent = 'Passwords do not match. Please verify.';
+    $('forgotErrorStep2').style.display = 'block';
+    return;
+  }
+
+  const btn = $('forgotResetBtn');
+  btn.disabled = true;
+  btn.textContent = 'Resetting…';
+  try{
+    const res = await fetch(apiBase + '/auth/reset-password', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        email,
+        otp,
+        new_password: newPassword
+      })
+    });
+    const body = await res.json().catch(()=>null);
+    if(!res.ok){
+      const detail = body && (body.detail || body.message);
+      throw new Error(detail || 'Password reset failed.');
+    }
+    toast('Password reset successfully! Please log in with your new password.');
+    switchAuthTab('login');
+    $('loginUsername').value = email;
+    $('loginPassword').value = '';
+    $('loginPassword').focus();
+  }catch(err){
+    $('forgotErrorStep2').textContent = err.message || 'Could not reset password.';
+    $('forgotErrorStep2').style.display = 'block';
+  }finally{
+    btn.disabled = false;
+    btn.textContent = 'Reset Password';
+  }
+});
 
 $('loginForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
